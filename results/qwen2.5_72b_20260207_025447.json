@@ -1,0 +1,47 @@
+{
+  "model": "qwen2.5:72b",
+  "system": {
+    "timestamp": "2026-02-07T02:54:47.794929",
+    "hostname": "neighboringparadise",
+    "gpus": [
+      "NVIDIA GeForce RTX 3090, 24576 MiB, 570.207",
+      "NVIDIA GeForce RTX 3090, 24576 MiB, 570.207",
+      "NVIDIA GeForce RTX 3090, 24576 MiB, 570.207"
+    ],
+    "ram_gb": 125,
+    "cpu": "Intel(R) Core(TM) i9-10900X CPU @ 3.70GHz"
+  },
+  "results": [
+    {
+      "test": "basic_reasoning",
+      "passed": true,
+      "latency_ms": 103550,
+      "notes": "Cold start"
+    },
+    {
+      "test": "instruction_following",
+      "passed": true,
+      "latency_ms": 860
+    },
+    {
+      "test": "tool_format",
+      "passed": true,
+      "latency_ms": 1313
+    },
+    {
+      "test": "multi_turn",
+      "passed": true,
+      "latency_ms": 483
+    },
+    {
+      "test": "json_output",
+      "passed": true,
+      "latency_ms": 1558
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "total": 5,
+    "avg_latency_ms": 21552.8
+  }
+}
