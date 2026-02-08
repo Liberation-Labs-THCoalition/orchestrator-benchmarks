@@ -70,80 +70,19 @@ def check_ollama_models():
         return []
 
 
-def run_tier1_sanity(runner: TestRunner, model: str) -> list:
-    """Run quick Tier 1 sanity checks."""
+def run_tier(runner: TestRunner, tier: int, model: str) -> list:
+    """Run tests for a specific tier."""
+    tier_names = {1: "Core Capabilities", 2: "Orchestration", 3: "Robustness"}
     print(f"\n{'='*60}")
-    print(f"TIER 1 - Core Capabilities Sanity Check: {model}")
+    print(f"TIER {tier} - {tier_names.get(tier, 'Custom')}: {model}")
     print(f"{'='*60}")
 
-    tests = [
-        "basic_reasoning",
-        "instruction_following",
-        "tool_format",
-        "json_output",
-    ]
-
-    results = []
-    for test_name in tests:
-        print(f"  Running {test_name}...", end=" ", flush=True)
-        start = time.time()
-        result = runner.run_test(test_name)
-        elapsed = time.time() - start
+    run = runner.run_tier(tier)
+    for result in run.results:
         status = "✓" if result.passed else "✗"
-        print(f"{status} ({elapsed:.1f}s, score={result.score:.2f})")
-        results.append(result)
+        print(f"  {result.test_name}: {status} ({result.latency_ms:.0f}ms, score={result.score:.2f})")
 
-    return results
-
-
-def run_tier2_orchestration(runner: TestRunner, model: str) -> list:
-    """Run Tier 2 orchestration tests."""
-    print(f"\n{'='*60}")
-    print(f"TIER 2 - Orchestration Tests: {model}")
-    print(f"{'='*60}")
-
-    tests = [
-        "tool_selection",
-        "multi_step_planning",
-        "error_recovery",
-    ]
-
-    results = []
-    for test_name in tests:
-        print(f"  Running {test_name}...", end=" ", flush=True)
-        start = time.time()
-        result = runner.run_test(test_name)
-        elapsed = time.time() - start
-        status = "✓" if result.passed else "✗"
-        print(f"{status} ({elapsed:.1f}s, score={result.score:.2f})")
-        results.append(result)
-
-    return results
-
-
-def run_tier3_robustness(runner: TestRunner, model: str) -> list:
-    """Run Tier 3 robustness tests."""
-    print(f"\n{'='*60}")
-    print(f"TIER 3 - Robustness Tests: {model}")
-    print(f"{'='*60}")
-
-    tests = [
-        "prompt_injection",
-        "refusal_handling",
-        "consistency",
-    ]
-
-    results = []
-    for test_name in tests:
-        print(f"  Running {test_name}...", end=" ", flush=True)
-        start = time.time()
-        result = runner.run_test(test_name)
-        elapsed = time.time() - start
-        status = "✓" if result.passed else "✗"
-        print(f"{status} ({elapsed:.1f}s, score={result.score:.2f})")
-        results.append(result)
-
-    return results
+    return list(run.results)
 
 
 def run_custom_datasets(provider, model: str) -> dict:
@@ -289,25 +228,24 @@ def main():
 
         try:
             provider = OllamaProvider(model=model)
-            runner = TestRunner(provider=provider, model=model)
+            runner = TestRunner(provider=provider)
 
             model_results = {"tiers": {}, "custom": {}}
 
-            # Tier 1 (always run)
-            tier1_results = run_tier1_sanity(runner, model)
-            model_results["tiers"]["tier1"] = [r.to_dict() for r in tier1_results]
-
-            # Tier 2 (standard and comprehensive)
-            if args.standard or args.comprehensive:
-                tier2_results = run_tier2_orchestration(runner, model)
-                model_results["tiers"]["tier2"] = [r.to_dict() for r in tier2_results]
-
-            # Tier 3 (comprehensive only)
+            # Determine max tier to run
             if args.comprehensive:
-                tier3_results = run_tier3_robustness(runner, model)
-                model_results["tiers"]["tier3"] = [r.to_dict() for r in tier3_results]
+                max_tier = 3
+            elif args.standard:
+                max_tier = 2
+            else:  # quick
+                max_tier = 1
 
-                # Custom datasets
+            # Run all tiers up to max_tier
+            tier_results = run_tier(runner, max_tier, model)
+            model_results["all_results"] = [r.to_dict() for r in tier_results]
+
+            # Custom datasets (comprehensive only)
+            if args.comprehensive:
                 custom_results = run_custom_datasets(provider, model)
                 model_results["custom"] = custom_results
 
