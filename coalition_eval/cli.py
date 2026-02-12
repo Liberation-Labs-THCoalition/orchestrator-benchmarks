@@ -245,6 +245,91 @@ def list_datasets():
         console.print(f"  - {name}")
 
 
+@app.command()
+def report(
+    results_file: Path = typer.Argument(..., help="Path to results JSON file"),
+    format: str = typer.Option("markdown", "--format", "-f", help="Output format (markdown, html, executive)"),
+    audience: str = typer.Option("technical", "--audience", "-a", help="Audience for executive summary (technical, investor, general)"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output file path"),
+    include_charts: bool = typer.Option(True, "--charts/--no-charts", help="Include charts in HTML report"),
+):
+    """Generate a report from evaluation results."""
+    from coalition_eval.core.reporter import (
+        generate_markdown_report,
+        generate_html_report,
+        generate_executive_summary,
+    )
+
+    if not results_file.exists():
+        console.print(f"[red]Results file not found: {results_file}[/red]")
+        raise typer.Exit(1)
+
+    # Load results
+    data = json.loads(results_file.read_text())
+    run = EvalRun.from_dict(data)
+
+    console.print(f"\n[bold blue]Coalition Eval[/bold blue] - Report Generator")
+    console.print(f"Model: [green]{run.model}[/green]")
+    console.print(f"Format: {format}\n")
+
+    # Generate report
+    if format == "html":
+        content = generate_html_report(run, include_charts=include_charts)
+        ext = ".html"
+    elif format == "executive":
+        content = generate_executive_summary(run, audience=audience)
+        ext = ".md"
+    else:  # markdown
+        content = generate_markdown_report(run)
+        ext = ".md"
+
+    # Output
+    if output:
+        output.write_text(content)
+        console.print(f"[green]Report saved to {output}[/green]")
+    else:
+        # Auto-generate output path
+        model_safe = run.model.replace(":", "_").replace("/", "_")
+        auto_path = results_file.parent / f"{model_safe}_report{ext}"
+        auto_path.write_text(content)
+        console.print(f"[green]Report saved to {auto_path}[/green]")
+
+
+@app.command()
+def visualize(
+    results_file: Path = typer.Argument(..., help="Path to results JSON file"),
+    output_dir: Optional[Path] = typer.Option(None, "--output", "-o", help="Output directory for charts"),
+):
+    """Generate visualization charts from evaluation results."""
+    try:
+        from coalition_eval.core.visualizations import visualize_run
+    except ImportError:
+        console.print("[red]matplotlib is required for visualizations. Install with: pip install matplotlib[/red]")
+        raise typer.Exit(1)
+
+    if not results_file.exists():
+        console.print(f"[red]Results file not found: {results_file}[/red]")
+        raise typer.Exit(1)
+
+    # Load results
+    data = json.loads(results_file.read_text())
+    run = EvalRun.from_dict(data)
+
+    console.print(f"\n[bold blue]Coalition Eval[/bold blue] - Visualization Generator")
+    console.print(f"Model: [green]{run.model}[/green]\n")
+
+    # Generate charts
+    if output_dir is None:
+        output_dir = results_file.parent / "charts"
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    charts = visualize_run(run, output_dir)
+
+    console.print(f"[green]Generated {len(charts)} charts in {output_dir}[/green]")
+    for name, path in charts.items():
+        console.print(f"  - {name}: {path}")
+
+
 def _display_results(run: EvalRun) -> None:
     """Display evaluation results in a table."""
     table = Table(title=f"Results: {run.model}")
